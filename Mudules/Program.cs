@@ -1,8 +1,16 @@
 ﻿using System.Device.Gpio;
 using System.Reflection;
-using System.Text; // Добавили для StringBuilder
+using System.Text;
 using Mudules;
 using Newtonsoft.Json;
+
+
+using NAudio.Wave;
+
+
+using System.IO;
+using System.Reflection;
+using System.Diagnostics;
 
 namespace Mudules
 {
@@ -17,40 +25,36 @@ namespace Mudules
         private static readonly object consoleLock = new object();
 
         private static bool[] states = { false, false, false, false, false, false };
-        //private static string[] devices = { "НАСОС", "БЛОК ПИТАНИЯ", "ОЧИСТИТЕЛЬНАЯ СТАНЦИЯ", "УСТРОЙСТВО 4", "УСТРОЙСТВО 5" };
+       
         private static int strLen;
         private static DeviceData data;
-
-        // Определяем самую длинную строку статуса для выравнивания
         private static int maxStatusLength;
+        private static string exeDir;
 
         static void Main(string[] args)
         {
             Console.Clear();
-            string exeDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            string filePath = Path.Combine(exeDir, "commands.json");
+            exeDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+
+            string filePath = Path.Combine(exeDir, "Assets", "commands.json");
 
             string json = File.ReadAllText(filePath);
-            //DeviceData data = JsonConvert.DeserializeObject<DeviceData>(json);
 
-            // string json = File.ReadAllText("commnads.json");
+            
 
             data = JsonConvert.DeserializeObject<DeviceData>(json);
 
-            // Считаем максимальную длину для красивого выравнивания
-            strLen = data.Devices.Max(x => x.Length) + 4; // Добавим небольшой отступ
+            strLen = data.Devices.Max(x => x.Length) + 4; 
             maxStatusLength = data.States.Max(x => x.Length);
 
-            // Прячем курсор, чтобы он не мешал
             Console.CursorVisible = false;
+           
 
             PinsController controller = new PinsController();
             controller.ButtonPressed += PressedPlus;
 
-            // Первоначальная отрисовка интерфейса
             TextBuilder();
 
-            // Бесконечное ожидание, чтобы программа не завершилась
             Thread.Sleep(Timeout.Infinite);
         }
 
@@ -59,7 +63,6 @@ namespace Mudules
             // Блокируем, чтобы избежать ситуации, когда два потока одновременно меняют состояние и рисуют
             lock (consoleLock)
             {
-                // Проверяем, изменилось ли состояние, чтобы не перерисовывать лишний раз
                 bool changed = false;
                 if (n != 5)
                 {
@@ -75,7 +78,6 @@ namespace Mudules
                 }
                 else if (n == 5 && state == true)
                 {
-                    // Логика для кнопки 5: включаем "ОБЩЕЕ СОСТОЯНИЕ", только если все остальные активны
                     bool allActive = states[0] && states[1] && states[2] && states[3] && states[4];
                     if (allActive)
                     {
@@ -84,7 +86,6 @@ namespace Mudules
                     }
                 }
 
-                // Перерисовываем интерфейс только если что-то поменялось
                 if (changed)
                 {
                     TextBuilder();
@@ -94,7 +95,6 @@ namespace Mudules
 
         private static void TextBuilder()
         {
-            // StringBuilder намного эффективнее для конкатенации строк в цикле
             var textBuilder = new StringBuilder();
 
             for (int j = 0; j < 5; j++)
@@ -102,32 +102,27 @@ namespace Mudules
                 string deviceName = data.Devices[j];
                 string status = states[j] ? data.States[0] : data.States[1];
 
-                // Форматируем строку с выравниванием
                 textBuilder.Append(deviceName.PadRight(strLen));
                 textBuilder.Append(status.PadRight(maxStatusLength)); // PadRight для выравнивания
                 textBuilder.AppendLine();
             }
 
-            textBuilder.AppendLine(); // Пустая строка для разделения
+            textBuilder.AppendLine();
 
-            //string totalStatusName = "ОБЩЕЕ СОСТОЯНИЕ";
             string totalStatus = states[5] ? data.States[0] : data.States[1];
 
             textBuilder.Append(data.Devices[5].PadRight(strLen));
             textBuilder.Append(totalStatus.PadRight(maxStatusLength));
             textBuilder.AppendLine();
 
-            // === Ключевые изменения здесь ===
             lock (consoleLock)
             {
                 Console.ForegroundColor = ConsoleColor.Green;
-                // 1. Устанавливаем курсор в начало
                 Console.SetCursorPosition(0, 0);
-                // 2. Выводим весь текст за один раз
                 Console.Write(textBuilder.ToString());
-                // 3. Console.Clear() УБРАН!
                 Console.ResetColor();
             }
         }
+       
     }
 }

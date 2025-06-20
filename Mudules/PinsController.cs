@@ -15,6 +15,7 @@ namespace Mudules
         public PinsController()
         {
             controller = new GpioController();
+            AudioPlayerMy.Init();
             Task.Run(MonitorButtons);
         }
         private void MonitorButtons()
@@ -29,6 +30,7 @@ namespace Mudules
             {
                 for (int i = 0; i < ButtonPins.Length; i++)
                 {
+                    AudioPlayerMy.PlaySoundSynchronously(i);
                     if (controller.Read(ButtonPins[i]) == PinValue.Low)
                     {
                         ButtonPressed?.Invoke(i, true);
